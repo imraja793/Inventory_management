@@ -1,6 +1,5 @@
-from django.db.models import F
-from django.shortcuts import render
-# Create your views here.
+from datetime import datetime
+
 from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -23,46 +22,109 @@ class WarehouseProductDescriptionList(generics.ListCreateAPIView):
     serializer_class = WarehouseProductDescriptionSerializer
 
 
+class CreateProduct(APIView):
+    def get(self,request):
+
+        obj = Product()
+        obj.name = "Fridge" #request.GET.get("name")
+        obj.product_id = 2346 #request.GET.get("name")
+        obj.price = 12000 #request.GET.get("name")
+        obj.actual_quantity = 1000 #request.GET.get("name")
+        obj.product_record = {0: {"prodct_name": str(obj.name),"timestamp":str(datetime.now()), "initial_quantity":str(obj.actual_quantity),
+                                   "price":str(obj.price), "product_id":str(obj.product_id)}}
+        obj.save()
+        return Response("saved")
+
+
+class Delete(APIView):
+    def get(self, request):
+        WarehouseProductDescription.objects.all().delete()
+        Product.objects.all().delete()
+        return Response("done")
+
 class ProductTransport(APIView):
+
     def post(self,request):
         try:
-            product_id = 1  #request.data['product_id']
-            to_location_id = 1  #request.data['to_location']
-            quantity_add = 15  #request.data['quantity']
-            try:
-                from_location_id = 2  # request.data['from_location']
-                print("dddddddddddddddddddddddddddd")
-                if to_location_id == from_location_id:
-                    return Response("Same Location Not Possible")
-                print("dddddddddddddddddddddddddddd")
-                data = WarehouseProductDescription.objects.get(product_id=product_id, location_id=to_location_id)
-                print(data.quantity, "sssssssss")
-                if int(data.quantity) < quantity_add:
-                    return Response('quantity is not available')
-                print("dddddddddddddddddddddddddddd")
-                a = WarehouseProductDescription.objects.filter(product_id=product_id, location_id=to_location_id).\
-                    update(quantity=F('quantity') - quantity_add)
-                print("ddddddddd")
-                c = WarehouseProductDescription.objects.filter(product_id=product_id, location_id=from_location_id). \
-                    update(quantity=F('quantity') - quantity_add)
-                print('1')
+            product_id = 30  # request.data['product_id']
+            from_location_id = 5  # request.data['from_location']
+            quantity_add = 10  # request.data['quantity']
+            to_location_id = 4  # request.data['to_location']
+            if to_location_id == from_location_id:
+                return Response("Same Location Not Possible")
 
-                print('12')
-                b = Product.objects.get(id=product_id)
-                b.product_record[3] = {"product_name":b.name,"to_location":a.location.name, "quatity": a.quantity, "from_location":"22"}
-                print('123')
-                b.save()
-                return Response("saved")
-            except:
-                a = WarehouseProductDescription()
-                a.quantity =0
-                a.product_id = product_id
-                a.location_id = to_location_id
-                a.save()
-                b = Product.objects.get(id=product_id)
-                b.product_record[2] = {"product_name":b.name,"to_location":a.location.name, "quatity": a.quantity, "from_location":"22"}
+            ware_data2 = WarehouseProductDescription.objects.filter(product_id=product_id, location_id=from_location_id)
+            print(ware_data2)
+            asd = {}
+            asd['quantity'] =  quantity_add
+            if ware_data2.exists():
+                for data in ware_data2:
+                    if int(data.quantity) < quantity_add:
+                        return Response('quantity is not available')
+                    else:
+                        asd['previous_from_location_quantity'] = data.quantity
+                        asd['from_loc_time'] = str(datetime.now())
+                        data.quantity = int(data.quantity) - quantity_add
+                        data.save()
+                        asd['from_location'] = from_location_id, data.location.name
+                        asd['updated_from_location_quantity'] = data.quantity
+            else:
+                create_wh_pdt(product_id, from_location_id)
+                return Response("created")
+            ware_data1 = WarehouseProductDescription.objects.filter(product_id=product_id, location_id=to_location_id)
+            if ware_data1.exists():
+                for dat in ware_data1:
+                    print("1111111111111111111")
+                    asd['previous_to_location_quantity'] = dat.quantity
+                    dat.quantity = int(dat.quantity) + quantity_add
+                    dat.save()
+                    asd['to_location'] = to_location_id, dat.location.name
+                    asd['updated_to_location_quantity'] = dat.quantity
+                    asd['to_loc_time'] = str(datetime.now())
+                    b = Product.objects.get(id=product_id)
+                    ass = list(b.product_record.keys())
+                    num = ass[-1]
+                    b.product_record[int(num) + 1] = asd
+                    b.save()
+                    return Response("updated")
 
+            else:
+                datae = WarehouseProductDescription()
+                datae.quantity = int(quantity_add)
+                datae.product_id = int(product_id)
+                datae.location_id = int(to_location_id)
+                datae.save()
+                asd['previous_to_location_quantity'] = 0
+                asd['updated_to_location_quantity'] = quantity_add
+                asd['to_location'] = to_location_id, datae.location.name
+                asd['to_loc_time'] = str(datetime.now())
+                b = Product.objects.get(id=product_id)
+                ass = list(b.product_record.keys())
+                num = ass[-1]
+                b.product_record[int(num) + 1] = asd
                 b.save()
                 return Response("new created")
+
         except Exception as e:
-            return Response("data is not correct")
+            return Response(e)
+
+
+def create_wh_pdt(product_id, location_id):
+
+    if WarehouseProductDescription.objects.filter(product_id=product_id, location_id=location_id).exists():
+        pass
+    else:
+        b = Product.objects.get(id=product_id)
+        a = WarehouseProductDescription()
+        a.quantity = b.actual_quantity
+        a.product_id = product_id
+        a.location_id = location_id
+        a.save()
+
+        b.product_record[1] = {"product_name":b.name,"from_location":a.location.name,"timestamp": str(datetime.now()),
+                               "quantity": a.quantity, "to_location":""}
+
+        b.save()
+        return Response("new created")
+    return Response("Nothing Happenned")
+

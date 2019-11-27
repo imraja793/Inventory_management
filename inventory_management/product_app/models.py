@@ -16,7 +16,7 @@ class Location(models.Model):
 
     def __str__(self):
         """__str__."""
-        return self.name
+        return (self.name + str(self.id))
 
 
 class Product(models.Model):
@@ -35,7 +35,7 @@ class Product(models.Model):
 
     def __str__(self):
         """__str__."""
-        return self.name
+        return (self.name + str(self.id))
 
 
 
@@ -53,23 +53,5 @@ class WarehouseProductDescription(models.Model):
 
     def __str__(self):
         """__str__."""
-        return self.product.name
+        return (self.product.name + str(self.id))
 
-
-#
-# class TrackProduct(models.Model):
-#     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-#     quantity = models.CharField(max_length=10, default='1')
-#     start_date = models.DateTimeField(auto_now_add=True)
-#     end_date = models.DateTimeField(auto_now=True)
-#     track = JSONField(null=True, blank=True)
-#
-#     class Meta:
-#         """Meta."""
-#
-#         managed = True
-#         db_table = "transport"
-#
-#     def __str__(self):
-#         """__str__."""
-#         return self.product.name
